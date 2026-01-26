@@ -121,26 +121,28 @@ async function ensureClawdbotGateway(
   // Check if Clawdbot is already running
   const existingProcess = await findExistingClawdbotProcess(sandbox);
   if (existingProcess) {
-    console.log('Reusing existing Clawdbot process:', existingProcess.id);
+    console.log('Reusing existing Clawdbot process:', existingProcess.id, 'status:', existingProcess.status);
 
-    // Wait for it to be ready if still starting
-    if (existingProcess.status === 'starting') {
-      console.log('Waiting for existing Clawdbot process to be ready...');
+    // Always wait for port to be ready, even if process is "running"
+    // The process might be running but the port might not be reachable yet
+    try {
+      console.log('Verifying Clawdbot gateway is reachable on port', CLAWDBOT_PORT);
+      await existingProcess.waitForPort(CLAWDBOT_PORT, {
+        mode: 'tcp',
+        timeout: 30_000, // Shorter timeout for existing process
+      });
+      console.log('Clawdbot gateway is reachable');
+      return existingProcess;
+    } catch (e) {
+      // Port not reachable - process might have crashed, kill and restart
+      console.log('Existing process not reachable, killing and restarting...');
       try {
-        // Use TCP mode - Clawdbot gateway uses WebSocket, not HTTP health endpoint
-        await existingProcess.waitForPort(CLAWDBOT_PORT, {
-          mode: 'tcp',
-          timeout: STARTUP_TIMEOUT_MS,
-        });
-      } catch (e) {
-        const logs = await existingProcess.getLogs();
-        throw new Error(
-          `Clawdbot gateway failed to start. Stderr: ${logs.stderr || '(empty)'}`
-        );
+        await existingProcess.kill();
+      } catch (killError) {
+        console.log('Failed to kill process:', killError);
       }
+      // Fall through to start a new process
     }
-
-    return existingProcess;
   }
 
   // Start a new Clawdbot gateway
