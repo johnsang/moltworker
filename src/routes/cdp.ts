@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import type { AppEnv, MoltbotEnv } from '../types';
+import { generateCDPSecret } from '../config';
 import puppeteer, { type Browser, type Page } from '@cloudflare/puppeteer';
 
 /**
@@ -9,6 +10,7 @@ import puppeteer, { type Browser, type Page } from '@cloudflare/puppeteer';
  * to Cloudflare Browser Rendering binding calls (Puppeteer interface).
  * 
  * Authentication: Pass secret as query param `?secret=<secret>` on WebSocket connect.
+ * The secret is auto-generated from MOLTBOT_GATEWAY_TOKEN - no manual configuration needed.
  * This route is intentionally NOT protected by Cloudflare Access.
  * 
  * Supported CDP domains:
@@ -22,6 +24,18 @@ import puppeteer, { type Browser, type Page } from '@cloudflare/puppeteer';
  * - Emulation: setDeviceMetricsOverride, setUserAgentOverride
  */
 const cdp = new Hono<AppEnv>();
+
+/**
+ * Get the expected CDP secret for authentication.
+ * The secret is derived from MOLTBOT_GATEWAY_TOKEN - no manual configuration needed.
+ * Returns null if CDP is not available (no BROWSER binding or no gateway token).
+ */
+async function getExpectedCDPSecret(env: MoltbotEnv): Promise<string | null> {
+  if (!env.BROWSER || !env.MOLTBOT_GATEWAY_TOKEN) {
+    return null;
+  }
+  return generateCDPSecret(env.MOLTBOT_GATEWAY_TOKEN);
+}
 
 /**
  * CDP Message types
@@ -152,27 +166,28 @@ cdp.get('/', async (c) => {
     });
   }
 
-  // Verify secret from query param
-  const url = new URL(c.req.url);
-  const providedSecret = url.searchParams.get('secret');
-  const expectedSecret = c.env.CDP_SECRET;
-
-  if (!expectedSecret) {
-    return c.json({
-      error: 'CDP endpoint not configured',
-      hint: 'Set CDP_SECRET via: wrangler secret put CDP_SECRET',
-    }, 503);
-  }
-
-  if (!providedSecret || !timingSafeEqual(providedSecret, expectedSecret)) {
-    return c.json({ error: 'Unauthorized' }, 401);
-  }
-
+  // Check if Browser Rendering is configured
   if (!c.env.BROWSER) {
     return c.json({
       error: 'Browser Rendering not configured',
       hint: 'Add browser binding to wrangler.jsonc',
     }, 503);
+  }
+
+  // Verify secret from query param (auto-generated from gateway token)
+  const url = new URL(c.req.url);
+  const providedSecret = url.searchParams.get('secret');
+  const expectedSecret = await getExpectedCDPSecret(c.env);
+
+  if (!expectedSecret) {
+    return c.json({
+      error: 'CDP endpoint not configured',
+      hint: 'MOLTBOT_GATEWAY_TOKEN must be set for CDP to work',
+    }, 503);
+  }
+
+  if (!providedSecret || !timingSafeEqual(providedSecret, expectedSecret)) {
+    return c.json({ error: 'Unauthorized' }, 401);
   }
 
   // Create WebSocket pair
@@ -201,27 +216,28 @@ cdp.get('/', async (c) => {
  * Authentication: Pass secret as query param `?secret=<CDP_SECRET>`
  */
 cdp.get('/json/version', async (c) => {
-  // Verify secret from query param
-  const url = new URL(c.req.url);
-  const providedSecret = url.searchParams.get('secret');
-  const expectedSecret = c.env.CDP_SECRET;
-
-  if (!expectedSecret) {
-    return c.json({
-      error: 'CDP endpoint not configured',
-      hint: 'Set CDP_SECRET via: wrangler secret put CDP_SECRET',
-    }, 503);
-  }
-
-  if (!providedSecret || !timingSafeEqual(providedSecret, expectedSecret)) {
-    return c.json({ error: 'Unauthorized' }, 401);
-  }
-
+  // Check if Browser Rendering is configured
   if (!c.env.BROWSER) {
     return c.json({
       error: 'Browser Rendering not configured',
       hint: 'Add browser binding to wrangler.jsonc',
     }, 503);
+  }
+
+  // Verify secret from query param (auto-generated from gateway token)
+  const url = new URL(c.req.url);
+  const providedSecret = url.searchParams.get('secret');
+  const expectedSecret = await getExpectedCDPSecret(c.env);
+
+  if (!expectedSecret) {
+    return c.json({
+      error: 'CDP endpoint not configured',
+      hint: 'MOLTBOT_GATEWAY_TOKEN must be set for CDP to work',
+    }, 503);
+  }
+
+  if (!providedSecret || !timingSafeEqual(providedSecret, expectedSecret)) {
+    return c.json({ error: 'Unauthorized' }, 401);
   }
 
   // Build the WebSocket URL - preserve the secret in the WS URL
@@ -247,27 +263,28 @@ cdp.get('/json/version', async (c) => {
  * Authentication: Pass secret as query param `?secret=<CDP_SECRET>`
  */
 cdp.get('/json/list', async (c) => {
-  // Verify secret from query param
-  const url = new URL(c.req.url);
-  const providedSecret = url.searchParams.get('secret');
-  const expectedSecret = c.env.CDP_SECRET;
-
-  if (!expectedSecret) {
-    return c.json({
-      error: 'CDP endpoint not configured',
-      hint: 'Set CDP_SECRET via: wrangler secret put CDP_SECRET',
-    }, 503);
-  }
-
-  if (!providedSecret || !timingSafeEqual(providedSecret, expectedSecret)) {
-    return c.json({ error: 'Unauthorized' }, 401);
-  }
-
+  // Check if Browser Rendering is configured
   if (!c.env.BROWSER) {
     return c.json({
       error: 'Browser Rendering not configured',
       hint: 'Add browser binding to wrangler.jsonc',
     }, 503);
+  }
+
+  // Verify secret from query param (auto-generated from gateway token)
+  const url = new URL(c.req.url);
+  const providedSecret = url.searchParams.get('secret');
+  const expectedSecret = await getExpectedCDPSecret(c.env);
+
+  if (!expectedSecret) {
+    return c.json({
+      error: 'CDP endpoint not configured',
+      hint: 'MOLTBOT_GATEWAY_TOKEN must be set for CDP to work',
+    }, 503);
+  }
+
+  if (!providedSecret || !timingSafeEqual(providedSecret, expectedSecret)) {
+    return c.json({ error: 'Unauthorized' }, 401);
   }
 
   // Build the WebSocket URL
@@ -292,30 +309,31 @@ cdp.get('/json/list', async (c) => {
  * GET /json - Alias for /json/list (some clients use this)
  */
 cdp.get('/json', async (c) => {
-  // Redirect internally to /json/list handler
-  const url = new URL(c.req.url);
-  url.pathname = url.pathname.replace(/\/json\/?$/, '/json/list');
-  
-  // Verify secret from query param
-  const providedSecret = url.searchParams.get('secret');
-  const expectedSecret = c.env.CDP_SECRET;
-
-  if (!expectedSecret) {
-    return c.json({
-      error: 'CDP endpoint not configured',
-      hint: 'Set CDP_SECRET via: wrangler secret put CDP_SECRET',
-    }, 503);
-  }
-
-  if (!providedSecret || !timingSafeEqual(providedSecret, expectedSecret)) {
-    return c.json({ error: 'Unauthorized' }, 401);
-  }
-
+  // Check if Browser Rendering is configured
   if (!c.env.BROWSER) {
     return c.json({
       error: 'Browser Rendering not configured',
       hint: 'Add browser binding to wrangler.jsonc',
     }, 503);
+  }
+
+  // Redirect internally to /json/list handler
+  const url = new URL(c.req.url);
+  url.pathname = url.pathname.replace(/\/json\/?$/, '/json/list');
+  
+  // Verify secret from query param (auto-generated from gateway token)
+  const providedSecret = url.searchParams.get('secret');
+  const expectedSecret = await getExpectedCDPSecret(c.env);
+
+  if (!expectedSecret) {
+    return c.json({
+      error: 'CDP endpoint not configured',
+      hint: 'MOLTBOT_GATEWAY_TOKEN must be set for CDP to work',
+    }, 503);
+  }
+
+  if (!providedSecret || !timingSafeEqual(providedSecret, expectedSecret)) {
+    return c.json({ error: 'Unauthorized' }, 401);
   }
 
   // Build the WebSocket URL

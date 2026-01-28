@@ -288,50 +288,13 @@ npx wrangler secret put SLACK_APP_TOKEN
 npm run deploy
 ```
 
-## Optional: Browser Automation (CDP)
-
-This worker includes a Chrome DevTools Protocol (CDP) shim that enables browser automation capabilities. This allows Moltbot to control a headless browser for tasks like web scraping, screenshots, and automated testing.
-
-### Setup
-
-1. Set a shared secret for authentication:
-
-```bash
-npx wrangler secret put CDP_SECRET
-# Enter a secure random string
-```
-
-2. Set your worker's public URL:
-
-```bash
-npx wrangler secret put WORKER_URL
-# Enter: https://your-worker.workers.dev
-```
-
-3. Redeploy:
-
-```bash
-npm run deploy
-```
-
-### Endpoints
-
-| Endpoint | Description |
-|----------|-------------|
-| `GET /cdp/json/version` | Browser version information |
-| `GET /cdp/json/list` | List available browser targets |
-| `GET /cdp/json/new` | Create a new browser target |
-| `WS /cdp/devtools/browser/{id}` | WebSocket connection for CDP commands |
-
-All endpoints require the `CDP_SECRET` header for authentication.
-
 ## Built-in Skills
 
 The container includes pre-installed skills in `/root/clawd/skills/`:
 
 ### cloudflare-browser
 
-Browser automation via the CDP shim. Requires `CDP_SECRET` and `WORKER_URL` to be set (see [Browser Automation](#optional-browser-automation-cdp) above).
+Browser automation via the built-in CDP (Chrome DevTools Protocol) shim. This allows Moltbot to control a headless browser for tasks like web scraping, screenshots, and automated testing. No additional configuration required - the CDP secret is auto-generated and the worker URL is derived from the request.
 
 **Scripts:**
 - `screenshot.js` - Capture a screenshot of a URL
@@ -402,8 +365,6 @@ The `AI_GATEWAY_*` variables take precedence over `ANTHROPIC_*` if both are set.
 | `DISCORD_DM_POLICY` | No | Discord DM policy: `pairing` (default) or `open` |
 | `SLACK_BOT_TOKEN` | No | Slack bot token |
 | `SLACK_APP_TOKEN` | No | Slack app token |
-| `CDP_SECRET` | No | Shared secret for CDP endpoint authentication (see [Browser Automation](#optional-browser-automation-cdp)) |
-| `WORKER_URL` | No | Public URL of the worker (required for CDP) |
 
 ## Security Considerations
 

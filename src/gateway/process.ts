@@ -1,7 +1,7 @@
 import type { Sandbox, Process } from '@cloudflare/sandbox';
 import type { MoltbotEnv } from '../types';
 import { MOLTBOT_PORT, STARTUP_TIMEOUT_MS } from '../config';
-import { buildEnvVars } from './env';
+import { buildEnvVars, type BuildEnvVarsOptions } from './env';
 import { mountR2Storage } from './r2';
 
 /**
@@ -36,6 +36,14 @@ export async function findExistingMoltbotProcess(sandbox: Sandbox): Promise<Proc
 }
 
 /**
+ * Options for ensuring the Moltbot gateway is running
+ */
+export interface EnsureGatewayOptions {
+  /** Worker URL derived from request (e.g., "https://moltbot.example.com") */
+  workerUrl?: string;
+}
+
+/**
  * Ensure the Moltbot gateway is running
  * 
  * This will:
@@ -45,9 +53,10 @@ export async function findExistingMoltbotProcess(sandbox: Sandbox): Promise<Proc
  * 
  * @param sandbox - The sandbox instance
  * @param env - Worker environment bindings
+ * @param options - Additional options like workerUrl
  * @returns The running gateway process
  */
-export async function ensureMoltbotGateway(sandbox: Sandbox, env: MoltbotEnv): Promise<Process> {
+export async function ensureMoltbotGateway(sandbox: Sandbox, env: MoltbotEnv, options: EnsureGatewayOptions = {}): Promise<Process> {
   // Mount R2 storage for persistent data (non-blocking if not configured)
   // R2 is used as a backup - the startup script will restore from it on boot
   await mountR2Storage(sandbox, env);
@@ -78,7 +87,11 @@ export async function ensureMoltbotGateway(sandbox: Sandbox, env: MoltbotEnv): P
 
   // Start a new Moltbot gateway
   console.log('Starting new Moltbot gateway...');
-  const envVars = buildEnvVars(env);
+  const envVarsOptions: BuildEnvVarsOptions = {};
+  if (options.workerUrl) {
+    envVarsOptions.workerUrl = options.workerUrl;
+  }
+  const envVars = await buildEnvVars(env, envVarsOptions);
   const command = '/usr/local/bin/start-moltbot.sh';
 
   console.log('Starting process with command:', command);

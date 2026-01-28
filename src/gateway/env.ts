@@ -1,12 +1,22 @@
 import type { MoltbotEnv } from '../types';
+import { generateCDPSecret } from '../config';
+
+/**
+ * Options for building environment variables
+ */
+export interface BuildEnvVarsOptions {
+  /** Worker URL derived from request (e.g., "https://moltbot.example.com") */
+  workerUrl?: string;
+}
 
 /**
  * Build environment variables to pass to the Moltbot container process
  * 
  * @param env - Worker environment bindings
+ * @param options - Additional options like workerUrl from request context
  * @returns Environment variables record
  */
-export function buildEnvVars(env: MoltbotEnv): Record<string, string> {
+export async function buildEnvVars(env: MoltbotEnv, options: BuildEnvVarsOptions = {}): Promise<Record<string, string>> {
   const envVars: Record<string, string> = {};
 
   // AI Gateway vars take precedence, mapped to ANTHROPIC_* for the container
@@ -34,8 +44,17 @@ export function buildEnvVars(env: MoltbotEnv): Record<string, string> {
   if (env.DISCORD_DM_POLICY) envVars.DISCORD_DM_POLICY = env.DISCORD_DM_POLICY;
   if (env.SLACK_BOT_TOKEN) envVars.SLACK_BOT_TOKEN = env.SLACK_BOT_TOKEN;
   if (env.SLACK_APP_TOKEN) envVars.SLACK_APP_TOKEN = env.SLACK_APP_TOKEN;
-  if (env.CDP_SECRET) envVars.CDP_SECRET = env.CDP_SECRET;
-  if (env.WORKER_URL) envVars.WORKER_URL = env.WORKER_URL;
+
+  // Worker URL: derived from request context (auto-configured, not user-set)
+  if (options.workerUrl) {
+    envVars.WORKER_URL = options.workerUrl;
+  }
+
+  // Generate CDP secret from gateway token (if BROWSER binding is available)
+  // This auto-generates a secure secret so users don't need to configure it
+  if (env.BROWSER && env.MOLTBOT_GATEWAY_TOKEN) {
+    envVars.CDP_SECRET = await generateCDPSecret(env.MOLTBOT_GATEWAY_TOKEN);
+  }
 
   return envVars;
 }

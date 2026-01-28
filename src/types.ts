@@ -35,8 +35,8 @@ export interface MoltbotEnv {
   CF_ACCOUNT_ID?: string; // Cloudflare account ID for R2 endpoint
   // Browser Rendering binding for CDP shim
   BROWSER?: Fetcher;
-  CDP_SECRET?: string; // Shared secret for CDP endpoint authentication
-  WORKER_URL?: string; // Public URL of the worker (for CDP endpoint)
+  // Note: CDP_SECRET is auto-generated from MOLTBOT_GATEWAY_TOKEN (not user-configurable)
+  // Note: WORKER_URL is auto-derived from request host (not user-configurable)
 }
 
 /**
