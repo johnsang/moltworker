@@ -219,6 +219,26 @@ if (process.env.CF_AI_GATEWAY_MODEL) {
     }
 }
 
+// Custom OpenAI-compatible provider (e.g., Fireworks.ai, Together.ai)
+if (process.env.OPENAI_BASE_URL && process.env.OPENAI_API_KEY) {
+    const baseUrl = process.env.OPENAI_BASE_URL.replace(/\/+$/, '');
+    const modelId = process.env.OPENAI_MODEL || 'gpt-4o';
+    const providerName = 'custom-openai';
+
+    config.models = config.models || {};
+    config.models.providers = config.models.providers || {};
+    config.models.providers[providerName] = {
+        baseUrl: baseUrl,
+        apiKey: process.env.OPENAI_API_KEY,
+        api: 'openai-completions',
+        models: [{ id: modelId, name: modelId, contextWindow: 131072, maxTokens: 8192 }],
+    };
+    config.agents = config.agents || {};
+    config.agents.defaults = config.agents.defaults || {};
+    config.agents.defaults.model = { primary: providerName + '/' + modelId };
+    console.log('Custom OpenAI-compatible provider: model=' + modelId + ' via ' + baseUrl);
+}
+
 // Telegram configuration
 // Overwrite entire channel object to drop stale keys from old R2 backups
 // that would fail OpenClaw's strict config validation (see #47)

@@ -129,6 +129,44 @@ describe('buildEnvVars', () => {
     expect(result.OPENCLAW_DEV_MODE).toBe('true');
   });
 
+  // OpenAI Base URL + Model
+  it('passes OPENAI_BASE_URL when set', () => {
+    const env = createMockEnv({
+      OPENAI_API_KEY: 'sk-openai-key',
+      OPENAI_BASE_URL: 'https://api.fireworks.ai/inference/v1',
+    });
+    const result = buildEnvVars(env);
+    expect(result.OPENAI_API_KEY).toBe('sk-openai-key');
+    expect(result.OPENAI_BASE_URL).toBe('https://api.fireworks.ai/inference/v1');
+  });
+
+  it('strips trailing slashes from OPENAI_BASE_URL', () => {
+    const env = createMockEnv({
+      OPENAI_API_KEY: 'sk-openai-key',
+      OPENAI_BASE_URL: 'https://api.fireworks.ai/inference/v1///',
+    });
+    const result = buildEnvVars(env);
+    expect(result.OPENAI_BASE_URL).toBe('https://api.fireworks.ai/inference/v1');
+  });
+
+  it('passes OPENAI_MODEL when set', () => {
+    const env = createMockEnv({
+      OPENAI_API_KEY: 'sk-openai-key',
+      OPENAI_MODEL: 'accounts/fireworks/models/kimi-k2-instruct',
+    });
+    const result = buildEnvVars(env);
+    expect(result.OPENAI_MODEL).toBe('accounts/fireworks/models/kimi-k2-instruct');
+  });
+
+  it('passes OPENAI_BASE_URL without OPENAI_API_KEY', () => {
+    const env = createMockEnv({
+      OPENAI_BASE_URL: 'https://api.fireworks.ai/inference/v1',
+    });
+    const result = buildEnvVars(env);
+    expect(result.OPENAI_BASE_URL).toBe('https://api.fireworks.ai/inference/v1');
+    expect(result.OPENAI_API_KEY).toBeUndefined();
+  });
+
   // AI Gateway model override
   it('passes CF_AI_GATEWAY_MODEL to container', () => {
     const env = createMockEnv({
